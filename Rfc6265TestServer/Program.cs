@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-namespace Rfc6265Test
+namespace Rfc6265TestServer
 {
     public class Program
     {
@@ -27,14 +27,14 @@ namespace Rfc6265Test
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
             app.UseRouting();
-            
+
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapGet("/", async ctx =>
                 {
                     if (!ctx.Request.Cookies.ContainsKey("LoginInvoked"))
                     {
-                        ctx.Response.Redirect("/login");
+                        ctx.Response.Redirect("/login/user");
                     }
                     else
                     {
@@ -44,26 +44,33 @@ namespace Rfc6265Test
                         }
                         else
                         {
-                            await ctx.Response.WriteAsync($"COOKIE MISSING");
+                            await ctx.Response.WriteAsync($"COOKIE MISSING LoggedIn");
                         }
                     }
                 });
-                
-                endpoints.MapGet("/login", async ctx =>
+
+                endpoints.MapGet("/login/user", async ctx =>
                 {
-                    ctx.Response.Cookies.Append("LoginInvoked", "true", new CookieOptions() { Path = "/"} );
-                    
-                    // Case 1: more specific path defined in header - COOKIE MISSING
-                    ctx.Response.Cookies.Append("LoggedIn", "true", new CookieOptions() { Path = "/login"});
-                    
-                    // Case 2: Path is less specific - WORKS
-                    // ctx.Response.Cookies.Append("LoggedIn", "true", new CookieOptions() { Path = "/"});
-                    
-                    // Case 3: Path is not defined (triggers default-path calculation on client) - WORKS
-                    // ctx.Response.Cookies.Append("LoggedIn", "true");
-                    
-                    ctx.Response.Redirect("/");
+                    ctx.Response.Cookies.Append("LoginInvoked", "true", new CookieOptions() { Path = "/" });
+
+                    ctx.Response.Cookies.Append("LoggingIn", "true", new CookieOptions() { Path = "/return" });
+
+                    ctx.Response.Redirect("/return");
                     await ctx.Response.CompleteAsync();
+                });
+
+
+                endpoints.MapGet("/return", async ctx =>
+                {
+                    if (!ctx.Request.Cookies.ContainsKey("LoggingIn"))
+                    {
+                        await ctx.Response.WriteAsync($"COOKIE MISSING LoggingIn");
+                        return;
+                    }
+
+                    ctx.Response.Cookies.Append("LoggedIn", "true", new CookieOptions() { Path = "/" });
+
+                    ctx.Response.Redirect("/");
                 });
             });
         }

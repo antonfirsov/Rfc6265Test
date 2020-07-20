@@ -1,3 +1,4 @@
+using System.Text;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -71,6 +72,48 @@ namespace Rfc6265TestServer
                     ctx.Response.Cookies.Append("LoggedIn", "true", new CookieOptions() { Path = "/" });
 
                     ctx.Response.Redirect("/");
+                });
+                
+                // Basic redirect test case:
+
+                endpoints.MapGet("/basictest", async ctx =>
+                {
+                    if (!ctx.Request.Cookies.ContainsKey("Basic-LoginInvoked"))
+                    {
+                        ctx.Response.Redirect("/basictest/login");
+                    }
+                    else
+                    {
+                        if (ctx.Request.Cookies.ContainsKey("Basic-LoggedIn"))
+                        {
+                            await ctx.Response.WriteAsync($"WORKS");
+                        }
+                        else
+                        {
+                            await ctx.Response.WriteAsync($"COOKIE MISSING Basic-LoggedIn");
+                        }
+                    }
+                });
+                
+                endpoints.MapGet("/basictest/login", async ctx =>
+                {
+                    ctx.Response.Cookies.Append("Basic-LoginInvoked", "true", new CookieOptions() { Path = "/basictest"} );
+                    ctx.Response.Cookies.Append("Basic-LoggedIn", "true", new CookieOptions() { Path = "/basictest/login"});
+                    ctx.Response.Redirect("/basictest");
+                    await ctx.Response.CompleteAsync();
+                });
+
+                endpoints.MapGet("/domaintest", async ctx =>
+                {
+                    void AddCookie(string name, string stuff = "") => ctx.Response.Headers.Append("Set-Cookie", $"{name}=xxx; {stuff}");
+                    
+                    AddCookie("a");
+                    AddCookie("b", "domain=localhost");
+                    AddCookie("c", "domain=.localhost");
+                    AddCookie("d", "domain=localhost; version=1");
+                    AddCookie("e", "version=1");
+
+                    await ctx.Response.WriteAsync("COOKIE DOMAIN TEST");
                 });
             });
         }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -9,16 +10,18 @@ namespace Rfc6265TestClient
     {
         static async Task Main(string[] args)
         {
-            Console.WriteLine(" --- Cookies returned from http://localhost:5000 ---");
-            await HttpClientTest();
+            string domain = args.FirstOrDefault() ?? "localhost";
+        
+            Console.WriteLine($" --- Cookies returned from http://{domain}:5000 ---");
+            await HttpClientTest(domain);
             Console.WriteLine(" --- Cookies added by manual filling of CookieContainer ---");
-            CookieContainerTest();
+            CookieContainerTest(domain);
         }
 
-        private static void CookieContainerTest()
+        private static void CookieContainerTest(string domain)
         {
             CookieContainer container = new CookieContainer();
-            Uri url = new Uri("http://localhost:5000");
+            Uri url = new Uri($"http://{domain}:5000");
 
             void AddCookie(string name, string rest = "")
             {
@@ -33,27 +36,35 @@ namespace Rfc6265TestClient
             } 
             
             AddCookie("a");
-            AddCookie("b", "domain=localhost");
-            AddCookie("c", "domain=.localhost");
-            AddCookie("d", "domain=localhost; version=1");
+            AddCookie("b", $"domain={domain}");
+            AddCookie("c", $"domain=.{domain}");
+            AddCookie("d", $"domain={domain}; version=1");
             AddCookie("e", "version=1");
             
-            PrintCookies(container);
+            int firstDot = domain.IndexOf('.');
+            if (firstDot > 0)
+            {
+                string rootDomain = domain.Substring(firstDot + 1, domain.Length - firstDot - 1);
+                AddCookie("f", $"domain={rootDomain}");
+                AddCookie("g", $"domain=.{rootDomain}");
+            }
+            
+            PrintCookies(container, domain);
         }
 
-        private static async Task HttpClientTest()
+        private static async Task HttpClientTest(string domain)
         {
             HttpClientHandler handler = new HttpClientHandler();
             CookieContainer cookies = handler.CookieContainer;
             using HttpClient client = new HttpClient(handler);
-            await client.GetAsync("http://localhost:5000");
+            await client.GetAsync($"http://{domain}:5000");
 
-            PrintCookies(cookies);
+            PrintCookies(cookies, domain);
         }
 
-        private static void PrintCookies(CookieContainer cookies)
+        private static void PrintCookies(CookieContainer cookies, string domain)
         {
-            foreach (Cookie cookie in cookies.GetCookies(new Uri("http://localhost:5000")))
+            foreach (Cookie cookie in cookies.GetCookies(new Uri($"http://{domain}:5000")))
             {
                 Console.WriteLine($"{cookie} | {cookie.Domain}");
             }
